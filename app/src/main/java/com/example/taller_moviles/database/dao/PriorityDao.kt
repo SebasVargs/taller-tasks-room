@@ -1,5 +1,6 @@
 package com.example.taller_moviles.database.dao
 
+import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -8,6 +9,7 @@ import androidx.room.Update
 import com.example.taller_moviles.database.entities.Priority
 import kotlinx.coroutines.flow.Flow
 
+@Dao
 interface PriorityDao {
     @Query("select * from priority order by name asc")
     fun all(): Flow<List<Priority>>

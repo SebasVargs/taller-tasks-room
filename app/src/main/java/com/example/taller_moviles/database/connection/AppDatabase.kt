@@ -12,7 +12,7 @@ import com.example.taller_moviles.database.entities.Priority
 import com.example.taller_moviles.database.entities.Task
 
 
-@Database(entities = [Task::class, Priority::class, Group::class], version = 1)
+@Database(entities = [Task::class, Priority::class, Group::class], version = 2)
 @TypeConverters(DateConverters::class)  // Registra el conversor de fechas
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao

@@ -4,7 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "group")
+@Entity(tableName = "task_group")
 data class Group(
     @PrimaryKey val id: Int,
     @ColumnInfo val name: String

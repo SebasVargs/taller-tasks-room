@@ -1,5 +1,6 @@
 package com.example.taller_moviles.database.dao
 
+import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -8,6 +9,7 @@ import androidx.room.Update
 import com.example.taller_moviles.database.entities.Task
 import kotlinx.coroutines.flow.Flow
 
+@Dao
 interface TaskDao {
     @Query("select * from task order by id asc")
     fun all(): Flow<List<Task>>
