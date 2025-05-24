@@ -77,17 +77,21 @@ fun HomeScreen(navController: NavController) {
 
     val tasks by viewModel.tasks.collectAsState(initial = emptyList())
     val overdueTasks by viewModel.overdueTasks.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+    val isSearching by viewModel.isSearching.collectAsState()
 
     var showDeleteTaskDialog by remember { mutableStateOf(false) }
     var taskToDelete by remember { mutableStateOf<TaskWithDetails?>(null) }
     var taskToEdit by remember { mutableStateOf<TaskWithDetails?>(null) }
+    var showAddTaskDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Gestión de Tareas") },
                 actions = {
-                    IconButton(onClick = { navController.navigate("task") }) {
+                    IconButton(onClick = { showAddTaskDialog = true }) {
                         Icon(Icons.Default.Add, contentDescription = "Agregar Tarea")
                     }
                     IconButton(onClick = { navController.navigate("group") }) {
@@ -103,6 +107,34 @@ fun HomeScreen(navController: NavController) {
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+            // Buscador de tareas
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                    if (it.isBlank()) {
+                        viewModel.clearSearch()
+                    } else {
+                        viewModel.searchTasks(it)
+                    }
+                },
+                label = { Text("Buscar tareas...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = {
+                            searchQuery = ""
+                            viewModel.clearSearch()
+                        }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Limpiar")
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            )
+
             // Alertas de tareas vencidas
             if (overdueTasks.isNotEmpty()) {
                 Card(
@@ -137,7 +169,8 @@ fun HomeScreen(navController: NavController) {
             }
 
             // Lista de tareas agrupadas y ordenadas por prioridad
-            val groupedTasks = tasks.groupBy { it.group_name }
+            val displayTasks = if (isSearching) searchResults else tasks
+            val groupedTasks = displayTasks.groupBy { it.group_name }
 
             LazyColumn {
                 groupedTasks.forEach { (groupName, groupTasks) ->
@@ -167,6 +200,14 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    // Modal para agregar nueva tarea
+    if (showAddTaskDialog) {
+        AddTaskDialog(
+            viewModel = viewModel,
+            onDismiss = { showAddTaskDialog = false }
+        )
     }
 
     if (showDeleteTaskDialog && taskToDelete != null) {
@@ -219,26 +260,20 @@ fun HomeScreen(navController: NavController) {
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskScreen(navController: NavController) {
+fun AddTaskDialog(
+    viewModel: TaskViewModel,
+    onDismiss: () -> Unit
+) {
     val context = LocalContext.current
-    val viewModel = remember { TaskViewModel(context) }
 
     var description by remember { mutableStateOf("") }
     var selectedPriorityId by remember { mutableIntStateOf(1) }
     var selectedGroupId by remember { mutableIntStateOf(1) }
     var limitDate by remember { mutableStateOf("") }
     var limitTime by remember { mutableStateOf("") }
-    var searchQuery by remember { mutableStateOf("") }
 
     val priorities by viewModel.priorities.collectAsState(initial = emptyList())
     val groups by viewModel.groups.collectAsState(initial = emptyList())
-    val tasks by viewModel.tasks.collectAsState(initial = emptyList())
-    val searchResults by viewModel.searchResults.collectAsState()
-    val isSearching by viewModel.isSearching.collectAsState()
-
-    var showDeleteTaskDialog by remember { mutableStateOf(false) }
-    var taskToDelete by remember { mutableStateOf<TaskWithDetails?>(null) }
-    var taskToEdit by remember { mutableStateOf<TaskWithDetails?>(null) }
 
     // Función para validar y crear tarea
     fun validateAndCreateTask() {
@@ -278,12 +313,8 @@ fun TaskScreen(navController: NavController) {
                     val limitDateTime = LocalDateTime.parse("${limitDate}T${limitTime}:00")
                     viewModel.addTask(description, limitDateTime, selectedPriorityId, selectedGroupId)
 
-                    // Limpiar campos después de crear exitosamente
-                    description = ""
-                    limitDate = ""
-                    limitTime = ""
-
                     Toast.makeText(context, "Tarea creada exitosamente", Toast.LENGTH_SHORT).show()
+                    onDismiss()
                 } catch (e: Exception) {
                     Toast.makeText(context, "Error al crear la tarea: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
@@ -291,10 +322,147 @@ fun TaskScreen(navController: NavController) {
         }
     }
 
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Nueva Tarea") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descripción *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = description.isBlank() && description != "",
+                    supportingText = if (description.isBlank() && description != "") {
+                        { Text("Campo obligatorio", color = MaterialTheme.colorScheme.error) }
+                    } else null
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = limitDate,
+                        onValueChange = { limitDate = it },
+                        label = { Text("Fecha Limite * (YYYY-MM-DD)") },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("2024-12-31") },
+                        isError = limitDate.isNotBlank() && !isValidDateFormat(limitDate)
+                    )
+
+                    OutlinedTextField(
+                        value = limitTime,
+                        onValueChange = { limitTime = it },
+                        label = { Text("Hora Limite * (HH:MM)") },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("23:59") },
+                        isError = limitTime.isNotBlank() && !isValidTimeFormat(limitTime)
+                    )
+                }
+
+                // Dropdown para prioridad
+                var expandedPriority by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expandedPriority,
+                    onExpandedChange = { expandedPriority = !expandedPriority }
+                ) {
+                    OutlinedTextField(
+                        value = priorities.find { it.id == selectedPriorityId }?.name ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Prioridad *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPriority) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedPriority,
+                        onDismissRequest = { expandedPriority = false }
+                    ) {
+                        priorities.forEach { priority ->
+                            DropdownMenuItem(
+                                text = { Text(priority.name) },
+                                onClick = {
+                                    selectedPriorityId = priority.id
+                                    expandedPriority = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Dropdown para grupo
+                var expandedGroup by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expandedGroup,
+                    onExpandedChange = { expandedGroup = !expandedGroup }
+                ) {
+                    OutlinedTextField(
+                        value = groups.find { it.id == selectedGroupId }?.name ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Grupo *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGroup) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedGroup,
+                        onDismissRequest = { expandedGroup = false }
+                    ) {
+                        groups.forEach { group ->
+                            DropdownMenuItem(
+                                text = { Text(group.name) },
+                                onClick = {
+                                    selectedGroupId = group.id
+                                    expandedGroup = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { validateAndCreateTask() }
+            ) {
+                Text("Crear Tarea")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TaskScreen(navController: NavController) {
+    val context = LocalContext.current
+    val viewModel = remember { TaskViewModel(context) }
+
+    val tasks by viewModel.tasks.collectAsState(initial = emptyList())
+
+    var showDeleteTaskDialog by remember { mutableStateOf(false) }
+    var taskToDelete by remember { mutableStateOf<TaskWithDetails?>(null) }
+    var taskToEdit by remember { mutableStateOf<TaskWithDetails?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gestión de Tareas") },
+                title = { Text("Todas las Tareas") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -309,174 +477,8 @@ fun TaskScreen(navController: NavController) {
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Formulario para agregar tarea
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Nueva Tarea",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = description,
-                        onValueChange = { description = it },
-                        label = { Text("Descripción *") },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = description.isBlank() && description != "",
-                        supportingText = if (description.isBlank() && description != "") {
-                            { Text("Campo obligatorio", color = MaterialTheme.colorScheme.error) }
-                        } else null
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = limitDate,
-                            onValueChange = { limitDate = it },
-                            label = { Text("Fecha Límite * (YYYY-MM-DD)") },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("2024-12-31") },
-                            isError = limitDate.isNotBlank() && !isValidDateFormat(limitDate),
-                            supportingText = if (limitDate.isNotBlank() && !isValidDateFormat(limitDate)) {
-                                { Text("Formato: YYYY-MM-DD", color = MaterialTheme.colorScheme.error) }
-                            } else null
-                        )
-
-                        OutlinedTextField(
-                            value = limitTime,
-                            onValueChange = { limitTime = it },
-                            label = { Text("Hora Límite * (HH:MM)") },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("23:59") },
-                            isError = limitTime.isNotBlank() && !isValidTimeFormat(limitTime),
-                            supportingText = if (limitTime.isNotBlank() && !isValidTimeFormat(limitTime)) {
-                                { Text("Formato: HH:MM", color = MaterialTheme.colorScheme.error) }
-                            } else null
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Dropdown para prioridad
-                        var expandedPriority by remember { mutableStateOf(false) }
-                        ExposedDropdownMenuBox(
-                            expanded = expandedPriority,
-                            onExpandedChange = { expandedPriority = !expandedPriority },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            OutlinedTextField(
-                                value = priorities.find { it.id == selectedPriorityId }?.name ?: "",
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Prioridad *") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPriority) },
-                                modifier = Modifier.menuAnchor()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = expandedPriority,
-                                onDismissRequest = { expandedPriority = false }
-                            ) {
-                                priorities.forEach { priority ->
-                                    DropdownMenuItem(
-                                        text = { Text(priority.name) },
-                                        onClick = {
-                                            selectedPriorityId = priority.id
-                                            expandedPriority = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Dropdown para grupo
-                        var expandedGroup by remember { mutableStateOf(false) }
-                        ExposedDropdownMenuBox(
-                            expanded = expandedGroup,
-                            onExpandedChange = { expandedGroup = !expandedGroup },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            OutlinedTextField(
-                                value = groups.find { it.id == selectedGroupId }?.name ?: "",
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Grupo *") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGroup) },
-                                modifier = Modifier.menuAnchor()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = expandedGroup,
-                                onDismissRequest = { expandedGroup = false }
-                            ) {
-                                groups.forEach { group ->
-                                    DropdownMenuItem(
-                                        text = { Text(group.name) },
-                                        onClick = {
-                                            selectedGroupId = group.id
-                                            expandedGroup = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { validateAndCreateTask() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Agregar Tarea")
-                    }
-                }
-            }
-
-            // Búsqueda de tareas
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = {
-                    searchQuery = it
-                    if (it.isBlank()) {
-                        viewModel.clearSearch()
-                    } else {
-                        viewModel.searchTasks(it)
-                    }
-                },
-                label = { Text("Buscar tareas...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
-                trailingIcon = {
-                    if (searchQuery.isNotBlank()) {
-                        IconButton(onClick = {
-                            searchQuery = ""
-                            viewModel.clearSearch()
-                        }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Limpiar")
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Lista de tareas ordenadas por prioridad
-            val displayTasks = if (isSearching) searchResults else tasks
-            val groupedTasks = displayTasks.groupBy { it.group_name }
+            val groupedTasks = tasks.groupBy { it.group_name }
 
             LazyColumn {
                 groupedTasks.forEach { (groupName, groupTasks) ->
