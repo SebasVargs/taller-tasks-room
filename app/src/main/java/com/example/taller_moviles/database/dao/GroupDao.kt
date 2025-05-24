@@ -11,18 +11,18 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface GroupDao {
-    @Query("select * from task_group order by name asc")
-    fun all(): Flow<List<Group>>
+    @Query("SELECT * FROM task_group")
+    fun getAllGroups(): Flow<List<Group>>
 
-    @Query("select * from task_group where id=:id")
-    fun findByID(id: Int): Flow<Group>
-
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    fun save(vararg newGroup: Group)
+    @Insert
+    suspend fun insertGroup(group: Group)
 
     @Update
-    fun update(vararg group: Group)
+    suspend fun updateGroup(group: Group)
 
     @Delete
-    fun delete(vararg group: Group)
+    suspend fun deleteGroup(group: Group)
+
+    @Query("SELECT * FROM task_group WHERE id = :id")
+    suspend fun getGroupById(id: Int): Group?
 }

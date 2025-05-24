@@ -31,24 +31,17 @@ class PriorityViewModel(context: Context): ViewModel() {
 
     fun findById(
         id: Int,
-        success: (data: Priority) -> Unit
+        success: (data: Priority?) -> Unit // ← admite null
     ) {
-        viewModelScope.launch(Dispatchers.Main) {
-            priorityRepository.findPriorityById(id).collect {
-                success(it)
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = priorityRepository.findPriorityById(id)
+            success(result)
         }
     }
 
     fun savePriority(data: Priority) {
         viewModelScope.launch(Dispatchers.IO) {
             priorityRepository.saveNewPriority(data)
-        }
-    }
-
-    fun deletePriority(data: Priority) {
-        viewModelScope.launch(Dispatchers.IO) {
-            priorityRepository.deletePriority(data)
         }
     }
 

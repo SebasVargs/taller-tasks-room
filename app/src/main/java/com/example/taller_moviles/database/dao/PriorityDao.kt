@@ -11,18 +11,15 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PriorityDao {
-    @Query("select * from priority order by name asc")
-    fun all(): Flow<List<Priority>>
+    @Query("SELECT * FROM priority")
+    fun getAllPriorities(): Flow<List<Priority>>
 
-    @Query("select * from priority where id=:id")
-    fun findByID(id: Int): Flow<Priority>
+    @Query("SELECT * FROM priority WHERE id = :id")
+    suspend fun getPriorityById(id: Int): Priority?
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    fun save(vararg newPriority: Priority)
+    @Insert
+    suspend fun insertPriority(priority: Priority)
 
-    @Update
-    fun update(vararg priority: Priority)
-
-    @Delete
-    fun delete(vararg priority: Priority)
+    @Query("SELECT COUNT(*) FROM priority")
+    suspend fun getPriorityCount(): Int
 }

@@ -29,12 +29,11 @@ class GroupViewModel(context: Context): ViewModel() {
 
     fun findById(
         id: Int,
-        success: (data: Group) -> Unit
+        success: (data: Group?) -> Unit // ← admite null
     ) {
-        viewModelScope.launch(Dispatchers.Main) {
-            groupRepository.findGroupById(id).collect {
-                success(it)
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = groupRepository.findGroupById(id)
+            success(result)
         }
     }
 
@@ -49,5 +48,4 @@ class GroupViewModel(context: Context): ViewModel() {
             groupRepository.deleteGroup(data)
         }
     }
-
 }

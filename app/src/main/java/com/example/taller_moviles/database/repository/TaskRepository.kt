@@ -7,23 +7,23 @@ import kotlinx.coroutines.flow.Flow
 class TaskRepository(private val dao: TaskDao) {
 
     fun getTasks(): Flow<List<Task>> {
-        return this.dao.all()
+        return this.dao.getAllTasks()
     }
 
-    fun findTaskById(id:Int) : Flow<Task> {
-        return this.dao.findByID(id)
+    suspend fun findTaskById(id: Int): Task? {
+        return dao.getTaskById(id)
     }
 
-    fun saveNewTask(task: Task){
-        this.dao.save(task)
+    suspend fun saveNewTask(task: Task) {
+        dao.insertTask(task)
     }
 
-    fun updateTask(task: Task){
-        this.dao.update(task)
+    suspend fun updateTask(task: Task) {
+        dao.updateTask(task)
     }
 
-    fun deleteTask(task: Task){
-        this.dao.delete(task)
+    suspend fun deleteTask(task: Task) {
+        dao.deleteTask(task)
     }
 
 }

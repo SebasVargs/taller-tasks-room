@@ -4,22 +4,23 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.room.TypeConverter
 import java.time.LocalDateTime
-import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 class DateConverters {
-    // Convierte un Long (milisegundos) a LocalDateTime
+    @RequiresApi(Build.VERSION_CODES.O)
+    private val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+
     @RequiresApi(Build.VERSION_CODES.O)
     @TypeConverter
-    fun fromTimestamp(value: Long?): LocalDateTime? {
-        return value?.let {
-            LocalDateTime.ofEpochSecond(it / 1000, 0, ZoneOffset.UTC)
-        }
+    fun fromLocalDateTime(dateTime: LocalDateTime?): String? {
+        return dateTime?.format(formatter)
     }
 
-    // Convierte LocalDateTime a Long (milisegundos)
     @RequiresApi(Build.VERSION_CODES.O)
     @TypeConverter
-    fun dateToTimestamp(date: LocalDateTime?): Long? {
-        return date?.toEpochSecond(ZoneOffset.UTC)?.times(1000)
+    fun toLocalDateTime(dateTimeString: String?): LocalDateTime? {
+        return dateTimeString?.let {
+            LocalDateTime.parse(it, formatter)
+        }
     }
 }
