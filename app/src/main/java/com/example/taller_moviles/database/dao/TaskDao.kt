@@ -34,19 +34,25 @@ interface TaskDao {
     fun getOverdueTasks(currentDate: String): Flow<List<TaskWithDetails>>
 
     @Query("""
-        SELECT t.*, p.name as priority_name, g.name as group_name 
-        FROM task t 
-        INNER JOIN priority p ON t.id_priority = p.id 
-        INNER JOIN task_group g ON t.id_group = g.id 
-        WHERE t.description LIKE :searchQuery 
-        OR p.name LIKE :searchQuery 
-        OR g.name LIKE :searchQuery
-        ORDER BY g.name, t.limit_time ASC
-    """)
+    SELECT t.*, p.name as priority_name, g.name as group_name 
+    FROM task t 
+    INNER JOIN priority p ON t.id_priority = p.id 
+    INNER JOIN task_group g ON t.id_group = g.id 
+    WHERE t.description LIKE '%' || :searchQuery || '%'
+    OR p.name LIKE '%' || :searchQuery || '%' 
+    OR g.name LIKE '%' || :searchQuery || '%'
+    OR t.create_date LIKE '%' || :searchQuery || '%'
+    OR t.limit_time LIKE '%' || :searchQuery || '%'
+    OR t.finish_date LIKE '%' || :searchQuery || '%'
+    ORDER BY g.name, t.limit_time ASC
+""")
     fun searchTasks(searchQuery: String): Flow<List<TaskWithDetails>>
 
     @Insert
     suspend fun insertTask(task: Task)
+
+    @Query("UPDATE Task SET status = 0, finish_date = NULL WHERE id = :taskId")
+    suspend fun reopenTask(taskId: Int)
 
     @Update
     suspend fun updateTask(task: Task)

@@ -102,6 +102,12 @@ class TaskViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    fun reopenTask(taskId: Int) {
+        viewModelScope.launch {
+            taskDao.reopenTask(taskId)
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
     fun finishTask(taskId: Int) {
         viewModelScope.launch {
