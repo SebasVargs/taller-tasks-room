@@ -59,9 +59,6 @@ fun AppNavigation(){
         composable("home") {
             HomeScreen(navController)
         }
-        composable("task") {
-            TaskScreen(navController)
-        }
         composable("group") {
             GroupScreen(navController)
         }
@@ -444,117 +441,6 @@ fun AddTaskDialog(
             }
         }
     )
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TaskScreen(navController: NavController) {
-    val context = LocalContext.current
-    val viewModel = remember { TaskViewModel(context) }
-
-    val tasks by viewModel.tasks.collectAsState(initial = emptyList())
-
-    var showDeleteTaskDialog by remember { mutableStateOf(false) }
-    var taskToDelete by remember { mutableStateOf<TaskWithDetails?>(null) }
-    var taskToEdit by remember { mutableStateOf<TaskWithDetails?>(null) }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Todas las Tareas") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            // Lista de tareas ordenadas por prioridad
-            val groupedTasks = tasks.groupBy { it.group_name }
-
-            LazyColumn {
-                groupedTasks.forEach { (groupName, groupTasks) ->
-                    item {
-                        Text(
-                            text = groupName,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
-
-                    // Ordenar por prioridad (id_priority ascendente = mayor prioridad primero)
-                    // y luego por fecha límite
-                    items(groupTasks.sortedWith(compareBy<TaskWithDetails> { it.id_priority }.thenBy { it.limit_time })) { task ->
-                        TaskItem(
-                            task = task,
-                            onFinish = { viewModel.finishTask(it) },
-                            onReopen = { viewModel.reopenTask(it) },
-                            onDelete = {
-                                taskToDelete = task
-                                showDeleteTaskDialog = true
-                            },
-                            onClick = { taskToEdit = task }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showDeleteTaskDialog && taskToDelete != null) {
-        AlertDialog(
-            onDismissRequest = {
-                showDeleteTaskDialog = false
-                taskToDelete = null
-            },
-            title = { Text("Confirmar eliminación") },
-            text = { Text("¿Estás seguro de que deseas eliminar la tarea \"${taskToDelete!!.description}\"?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val taskEntity = Task(
-                            taskToDelete!!.id, taskToDelete!!.description, taskToDelete!!.create_date,
-                            taskToDelete!!.limit_time, taskToDelete!!.finish_date, taskToDelete!!.status,
-                            taskToDelete!!.id_priority, taskToDelete!!.id_group
-                        )
-                        viewModel.deleteTask(taskEntity)
-                        showDeleteTaskDialog = false
-                        taskToDelete = null
-                    }
-                ) {
-                    Text("Eliminar", color = Color.Red)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteTaskDialog = false
-                        taskToDelete = null
-                    }
-                ) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-
-    // Diálogo de edición de tarea
-    if (taskToEdit != null) {
-        TaskEditDialog(
-            task = taskToEdit!!,
-            viewModel = viewModel,
-            onDismiss = { taskToEdit = null }
-        )
-    }
 }
 
 // Funciones de validación
@@ -1033,15 +919,6 @@ fun TaskEditDialog(
 fun HomeScreenPreview() {
     Taller_MovilesTheme {
         HomeScreen(rememberNavController())
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@Preview(showBackground = true, widthDp = 320, heightDp = 640)
-@Composable
-fun TaskScreenPreview() {
-    Taller_MovilesTheme {
-        TaskScreen(rememberNavController())
     }
 }
 
