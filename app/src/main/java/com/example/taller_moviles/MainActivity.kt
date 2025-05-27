@@ -326,7 +326,7 @@ fun AddTaskDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(280.dp),
+                    .height(380.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedTextField(
